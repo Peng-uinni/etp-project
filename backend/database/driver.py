@@ -1,4 +1,5 @@
 import os
+import asyncio
 from dotenv import load_dotenv
 from pymongo import AsyncMongoClient
 
@@ -12,7 +13,7 @@ class Database:
       DB_NAME = os.getenv('DB_NAME')
       print("Fetched env")
     else:
-      raise EnvironmentError("Failed to load .env file")
+      raise EnvironmentError("[ENV] Failed to load .env file")
     
     self.client = AsyncMongoClient(
       host=DB_HOST,
@@ -20,17 +21,29 @@ class Database:
     )
     
     try:
-      self.database = self.client.get_database(DB_NAME)
+      self.database = self.client[DB_NAME]
       print("Database connected")
     except Exception as e:
-      raise Exception(f"Failed to connect to the database: {e}") 
+      raise Exception(f"[DB] Failed to connect to the database: {e}") 
 
-  def getCollection(self, collection_name: str):
-    return self.database.get_collection(collection_name)
+  async def find(self, collection: str, query: dict):
+    try:
+      cursor = self.database[collection].find(query) 
+      async for c in cursor:
+        print(c)
+      return cursor
+    except Exception as e:
+      print(e)
 
-  def find(self, collection_name: str, query: dict):
-    collection = self.getCollection(collection_name)
-    return collection.find(query)
+  async def insert(self, collection: str, query: dict):
+    try:
+      await self.database[collection].insert_one(query)
+    except Exception as e:
+      print(f"{e}\n")
   
-  async def __del__(self) -> None:
-    await self.client.close()
+  async def close(self):
+    try:
+      await self.client.close()
+      print("[DB] Connection closed")
+    except Exception as e:
+      print(e)
