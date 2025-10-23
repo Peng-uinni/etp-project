@@ -1,12 +1,19 @@
+import os
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import ExtensionRouter, UserRouter, AuthRouter
+from routers import ExtensionRouter, UserRouter, AuthRouter
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "chrome-extension://fohnfiggddpjbgkicemfppkdckmadjai",
 ]
 
 app.add_middleware(
