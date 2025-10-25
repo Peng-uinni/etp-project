@@ -8,7 +8,6 @@ const FoldersPage = ({ onOpenFolder }) => {
     { id: 3, name: "AI & ML", count: 15, color: "bg-green-500" },
     { id: 4, name: "Mathematics", count: 6, color: "bg-orange-500" }
   ]);
-
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 

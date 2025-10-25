@@ -7,7 +7,6 @@ const TranscriptsPage = ({ onViewTranscript }) => {
     { id: 2, title: "Data Structures - Binary Trees", date: "2025-10-19", duration: "1:12:45", folder: "Computer Science" },
     { id: 3, title: "Machine Learning Basics", date: "2025-10-18", duration: "58:20", folder: "AI & ML" }
   ]);
-
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredTranscripts = transcripts.filter(t => 
@@ -68,17 +67,14 @@ const TranscriptsPage = ({ onViewTranscript }) => {
                         <Clock className="w-4 h-4" />
                         <span>{transcript.duration}</span>
                       </div>
-
                       <div className="flex items-center space-x-1">
                         <Folder className="w-4 h-4" />
                         <span>{transcript.folder}</span>
                       </div>
-
                       <span>{transcript.date}</span>
                     </div>
                   </div>
                 </div>
-
                 <div className="flex space-x-2">
                   <button className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition">
                     <Edit className="w-5 h-5" />
