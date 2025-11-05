@@ -14,7 +14,6 @@ function openSidebar() {
   sidebar.style.width = '300px';
   sidebar.style.height = '100%';
   sidebar.style.backgroundColor = 'white';
-  sidebar.style.boxShadow = '-2px 0px 5px rgba(0,0,0,0.1)';
   sidebar.style.zIndex = '1000';
 
   const content = document.createElement('div');
