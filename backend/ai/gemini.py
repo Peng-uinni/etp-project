@@ -1,10 +1,8 @@
-import os
 from io import BytesIO
 from google import genai
 from google.genai.errors import APIError
 
-api_key = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+client = genai.Client()
 
 def generateTranscript(audio_file_bytes: bytes, mime_type: str = "audio/webm") -> str:
     try:
@@ -12,8 +10,9 @@ def generateTranscript(audio_file_bytes: bytes, mime_type: str = "audio/webm") -
       
         uploaded_file = client.files.upload(
             file=audio_data,
-            mime_type=mime_type,
-            name="uploaded_audio.webm"
+            config = {
+                "mime_type": mime_type
+            }
         )
 
         prompt = "Transcribe the following audio file to text."
