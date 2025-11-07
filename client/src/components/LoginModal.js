@@ -85,4 +85,4 @@ const LoginModal = ({ onClose, onLogin, onSwitchToSignup, onGoogleLogin }) => {
   );
 };
 
-export default LoginModal;
+export default LoginModal;
