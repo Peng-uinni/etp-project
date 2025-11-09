@@ -4,9 +4,12 @@ import Navbar from './components/Navbar';
 import HomePage from './components/HomePage';
 import TranscriptsPage from './components/TranscriptsPage';
 import FoldersPage from './components/FoldersPage';
+import FolderContentsPage from './components/FolderContentsPage';
+import TranscriptViewPage from './components/TranscriptViewPage';
 import LoginModal from './components/LoginModal';
 import SignupModal from './components/SignupModal';
-import Footer from './components/Footer';  // ← ADD THIS
+import Footer from './components/Footer';
+import ChatSidebar from './components/ChatSidebar';
 import './App.css';
 
 function App() {
@@ -15,6 +18,8 @@ function App() {
   const [showSignup, setShowSignup] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState(null);
+  const [selectedTranscript, setSelectedTranscript] = useState(null);
 
   const handleLogin = (email, password) => {
     if (email && password) {
@@ -57,8 +62,36 @@ function App() {
     }
   };
 
+  // ✅ When opening folder
+  const handleOpenFolder = (folder) => {
+    setSelectedFolder(folder);
+    setCurrentPage('folderContents');
+  };
+
+  // ✅ Back from folderContents page
+  const handleBackToFolders = () => {
+    setSelectedFolder(null);
+    setCurrentPage('folders');
+  };
+
+  // ✅ View transcript
+  const handleViewTranscript = (transcript) => {
+    setSelectedTranscript(transcript);
+    setCurrentPage('transcriptView');
+  };
+
+  // ✅ Back from transcript view
+  const handleBackFromTranscript = () => {
+    setSelectedTranscript(null);
+    if (selectedFolder) {
+      setCurrentPage('folderContents');
+    } else {
+      setCurrentPage('transcripts');
+    }
+  };
+
   return (
-    <div className="min-h-screen relative flex flex-col">  {/* ← UPDATED: Added flex flex-col */}
+    <div className="min-h-screen relative flex flex-col">
       <AnimatedBackground />
       
       <Navbar 
@@ -70,8 +103,7 @@ function App() {
         onNavigate={setCurrentPage}
       />
 
-      {/* Main Content */}
-      <main className="flex-grow">  {/* ← WRAPPED in main tag */}
+      <main className="flex-grow">
         {currentPage === 'home' && (
           <HomePage 
             onGetStarted={handleGetStarted} 
@@ -79,12 +111,34 @@ function App() {
             loggedIn={loggedIn}
           />
         )}
-        {currentPage === 'transcripts' && <TranscriptsPage />}
-        {currentPage === 'folders' && <FoldersPage />}
+
+        {currentPage === 'transcripts' && (
+          <TranscriptsPage onViewTranscript={handleViewTranscript} />
+        )}
+
+        {currentPage === 'folders' && (
+          <FoldersPage onOpenFolder={handleOpenFolder} />
+        )}
+
+        {currentPage === 'folderContents' && selectedFolder && (
+          <FolderContentsPage 
+            folder={selectedFolder}      // ✅ CHANGED
+            onBack={handleBackToFolders} // ✅ CHANGED
+          />
+        )}
+
+        {currentPage === 'transcriptView' && selectedTranscript && (
+          <TranscriptViewPage 
+            transcript={selectedTranscript}
+            onBack={handleBackFromTranscript}
+          />
+        )}
       </main>
 
-      {/* Footer */}
-      <Footer onNavigate={setCurrentPage} />  {/* ← ADD THIS */}
+      <Footer onNavigate={setCurrentPage} />
+
+      {/* Chat Sidebar always when logged in */}
+      {loggedIn && <ChatSidebar />}
 
       {showLogin && (
         <LoginModal
