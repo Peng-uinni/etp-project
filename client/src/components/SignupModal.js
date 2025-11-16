@@ -1,16 +1,40 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 const SignupModal = ({ onClose, onSignup, onSwitchToLogin, onGoogleLogin }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    onSignup(name, email, password);
-    setName("");
-    setEmail("");
-    setPassword("");
+  const handleSubmit = async () => {
+    if (!name || !email || !password) {
+      setError("Please fill all fields");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await authAPI.signup(email, name, password);
+      // Call parent handler
+      onSignup(name, email, password);
+      setName("");
+      setEmail("");
+      setPassword("");
+    } catch (err) {
+      setError(err.message || "Signup failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -21,6 +45,12 @@ const SignupModal = ({ onClose, onSignup, onSwitchToLogin, onGoogleLogin }) => {
         </button>
 
         <h2 className="text-3xl font-bold text-gray-900 mb-6">Create Account</h2>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -64,9 +94,10 @@ const SignupModal = ({ onClose, onSignup, onSwitchToLogin, onGoogleLogin }) => {
 
           <button
             onClick={handleSubmit}
-            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md font-medium"
+            disabled={loading}
+            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create Account
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </div>
 

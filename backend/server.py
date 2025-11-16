@@ -8,7 +8,8 @@ from .routers import *
 
 dotenv.load_dotenv()
 
-app = FastAPI()
+# Set max upload file size to 100MB (default is 25MB)
+app = FastAPI(max_request_size=100 * 1024 * 1024)
 
 origins = [
     "http://localhost:3000",
@@ -29,4 +30,4 @@ app.include_router(AuthRouter)
 
 @app.get("/")
 async def read_root():
-    return {"Hello": os.getenv('GEMINI_API_KEY')}
+    return {"Hello": "Root"}

@@ -6,6 +6,7 @@ class TranscriptSchema(BaseModel):
   folderId: Optional[str] = Field(None)
   subject: str
   transcript: str
+  createdAt: Optional[str] = Field(None)
   summary: Optional[str] = Field(None)
   chat: Optional[list] = Field([])
 

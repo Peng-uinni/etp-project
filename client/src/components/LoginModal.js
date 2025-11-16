@@ -1,14 +1,33 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock } from 'lucide-react';
+import { authAPI } from '../services/api';
 
 const LoginModal = ({ onClose, onLogin, onSwitchToSignup, onGoogleLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    onLogin(email, password);
-    setEmail("");
-    setPassword("");
+  const handleSubmit = async () => {
+    if (!email || !password) {
+      setError("Please enter email and password");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await authAPI.login(email, password);
+      // Call parent handler with email (user will be extracted from profile)
+      onLogin(email, password);
+      setEmail("");
+      setPassword("");
+    } catch (err) {
+      setError(err.message || "Login failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -19,6 +38,12 @@ const LoginModal = ({ onClose, onLogin, onSwitchToSignup, onGoogleLogin }) => {
         </button>
 
         <h2 className="text-3xl font-bold text-gray-900 mb-6">Welcome Back!</h2>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -51,9 +76,10 @@ const LoginModal = ({ onClose, onLogin, onSwitchToSignup, onGoogleLogin }) => {
 
           <button
             onClick={handleSubmit}
-            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md font-medium"
+            disabled={loading}
+            className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </div>
 

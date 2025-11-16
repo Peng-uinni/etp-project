@@ -1,34 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ArrowLeft, Search, FileVideo, Clock } from "lucide-react";
 
 const FolderContentsPage = ({ folder, onBack }) => {
 
-  // ✅ Dummy transcript data inside folder
-  const [transcripts] = useState([
-    {
-      id: 1,
-      title: "React Hooks Lecture",
-      duration: "45:30",
-      date: "2025-10-10",
-    },
-    {
-      id: 2,
-      title: "React State & Props",
-      duration: "50:15",
-      date: "2025-10-11",
-    },
-    {
-      id: 3,
-      title: "React Optimization",
-      duration: "39:50",
-      date: "2025-10-12",
-    },
-  ]);
-
+  // Fetch transcripts from the folder
+  const [transcripts, setTranscripts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchFolderTranscripts = async () => {
+      try {
+        setLoading(true);
+        // TODO: Implement API to fetch transcripts by folder
+        // For now, use dummy data - this will be replaced with folder-specific transcripts
+        setTranscripts([]);
+      } catch (err) {
+        setError(err.message || 'Failed to load transcripts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (folder?.id) {
+      fetchFolderTranscripts();
+    }
+  }, [folder?.id]);
 
   const filtered = transcripts.filter((t) =>
-    t.title.toLowerCase().includes(searchTerm.toLowerCase())
+    t.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.title?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -51,6 +53,12 @@ const FolderContentsPage = ({ folder, onBack }) => {
         <p className="text-gray-600 mb-8">
           {filtered.length} transcripts inside this folder
         </p>
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+
 
         {/* ✅ SEARCH */}
         <div className="mb-8">
@@ -66,9 +74,15 @@ const FolderContentsPage = ({ folder, onBack }) => {
           </div>
         </div>
 
-        {/* ✅ TRANSCRIPT LIST */}
-        <div className="grid grid-cols-1 gap-6">
-          {filtered.map((transcript) => (
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-lg text-gray-600">Loading transcripts...</div>
+          </div>
+        ) : (
+          <>
+            {/* ✅ TRANSCRIPT LIST */}
+            <div className="grid grid-cols-1 gap-6">
+              {filtered.map((transcript) => (
             <div
               key={transcript.id}
               className="bg-white rounded-xl shadow-md hover:shadow-xl transition p-6"
@@ -81,32 +95,32 @@ const FolderContentsPage = ({ folder, onBack }) => {
 
                 <div className="flex-1">
                   <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    {transcript.title}
+                        {transcript.subject || transcript.title || 'Untitled'}
                   </h3>
 
                   <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{transcript.duration}</span>
-                    </div>
-                    <span>{transcript.date}</span>
+                        {transcript.createdAt && (
+                          <span>{new Date(transcript.createdAt).toLocaleDateString()}</span>
+                        )}
                   </div>
                 </div>
 
               </div>
             </div>
-          ))}
-        </div>
+              ))}
+            </div>
 
-        {/* ✅ EMPTY STATE */}
-        {filtered.length === 0 && (
-          <div className="text-center py-12">
-            <FileVideo className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No transcripts found
-            </h3>
-            <p className="text-gray-600">Try a different search term</p>
-          </div>
+            {/* ✅ EMPTY STATE */}
+            {filtered.length === 0 && (
+              <div className="text-center py-12">
+                <FileVideo className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  No transcripts found
+                </h3>
+                <p className="text-gray-600">Try a different search term</p>
+              </div>
+            )}
+          </>
         )}
 
       </div>

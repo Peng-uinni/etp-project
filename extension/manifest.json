@@ -7,11 +7,13 @@
     "default_popup": "sidebar.html" 
   },
   "host_permissions":[
-    "http://localhost:8000/extension/audio"
+    "http://localhost:8000/*"
   ],
   "permissions": [
     "activeTab",
-    "tabCapture"
+    "tabCapture",
+    "cookies",
+    "storage"
   ],
   "background": {
     "service_worker": "background.js"

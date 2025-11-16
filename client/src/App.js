@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AnimatedBackground from './components/AnimatedBackground';
 import Navbar from './components/Navbar';
 import HomePage from './components/HomePage';
@@ -9,7 +9,8 @@ import TranscriptViewPage from './components/TranscriptViewPage';
 import LoginModal from './components/LoginModal';
 import SignupModal from './components/SignupModal';
 import Footer from './components/Footer';
-import ChatSidebar from './components/ChatSidebar';
+import { userAPI } from './services/api';
+import { authAPI } from './services/api';
 import './App.css';
 
 function App() {
@@ -17,41 +18,79 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [user, setUser] = useState("");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [selectedTranscript, setSelectedTranscript] = useState(null);
 
-  const handleLogin = (email, password) => {
-    if (email && password) {
+  // Check if user is already logged in on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        setLoading(true);
+        const userData = await userAPI.getProfile();
+        setUser(userData);
+        setLoggedIn(true);
+      } catch (err) {
+        // Not logged in
+        setLoggedIn(false);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const handleLogin = async (email, password) => {
+    try {
+      setLoading(true);
+      const userData = await userAPI.getProfile();
+      setUser(userData);
       setLoggedIn(true);
-      setUser(email.split("@")[0]);
       setShowLogin(false);
-    } else {
-      alert("Please enter email and password");
+    } catch (err) {
+      console.error('Login error:', err);
+      alert(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSignup = (name, email, password) => {
-    if (name && email && password) {
+  const handleSignup = async (name, email, password) => {
+    try {
+      setLoading(true);
+      const userData = await userAPI.getProfile();
+      setUser(userData);
       setLoggedIn(true);
-      setUser(name);
       setShowSignup(false);
-    } else {
-      alert("Please fill all fields");
+    } catch (err) {
+      console.error('Signup error:', err);
+      alert(err.message || 'Signup failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleLogin = () => {
-    setLoggedIn(true);
-    setUser("Google User");
-    setShowLogin(false);
-    setShowSignup(false);
+    // TODO: Implement Google OAuth
+    alert('Google login coming soon');
   };
 
-  const handleLogout = () => {
-    setLoggedIn(false);
-    setUser("");
-    setCurrentPage('home');
+  const handleLogout = async () => {
+    try {
+      await authAPI.logout();
+      setLoggedIn(false);
+      setUser(null);
+      setCurrentPage('home');
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Even if logout API fails, clear frontend state
+      setLoggedIn(false);
+      setUser(null);
+      setCurrentPage('home');
+    }
   };
 
   const handleGetStarted = () => {
@@ -96,7 +135,7 @@ function App() {
       
       <Navbar 
         loggedIn={loggedIn}
-        user={user}
+        user={user?.name || user?.email || user}
         onLogout={handleLogout}
         onLoginClick={() => setShowLogin(true)}
         onSignupClick={() => setShowSignup(true)}
@@ -137,8 +176,6 @@ function App() {
 
       <Footer onNavigate={setCurrentPage} />
 
-      {/* Chat Sidebar always when logged in */}
-      {loggedIn && <ChatSidebar />}
 
       {showLogin && (
         <LoginModal

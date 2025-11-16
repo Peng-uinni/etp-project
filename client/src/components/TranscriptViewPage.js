@@ -1,33 +1,29 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Download, Share2, Copy, Search, Play } from 'lucide-react';
+import { ArrowLeft, Download, Share2, Copy, Search, Play, Send, Bot, User } from 'lucide-react';
+import { userAPI } from '../services/api';
 
 const TranscriptViewPage = ({ transcript, onBack }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  
+  const [chatInput, setChatInput] = useState("");
+  const [chatHistory, setChatHistory] = useState(transcript.chat || []);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const handleSendChat = async () => {
+    if (!chatInput.trim()) return;
+    setChatLoading(true);
+    try {
+      const res = await userAPI.chatWithTranscript(transcript.id, chatInput);
+      setChatHistory(res.chat);
+      setChatInput("");
+    } catch (err) {
+      alert('Error sending chat: ' + err.message);
+    }
+    setChatLoading(false);
+  };
+
   // Sample transcript text
-  const transcriptText = `
-[00:00:00] Welcome to this lecture on React Hooks. Today we'll be covering the fundamentals of useState and useEffect.
-
-[00:00:15] First, let's talk about useState. This is one of the most commonly used hooks in React. It allows you to add state to functional components.
-
-[00:00:45] The syntax is simple: const [state, setState] = useState(initialValue). The first element in the array is the current state value, and the second is a function to update it.
-
-[00:01:20] Now let's move on to useEffect. This hook lets you perform side effects in functional components. It's similar to componentDidMount, componentDidUpdate, and componentWillUnmount combined.
-
-[00:02:00] UseEffect takes two arguments: a function and a dependency array. The function contains the side effect logic, and the dependency array determines when the effect runs.
-
-[00:02:45] Here's an example: useEffect(() => { document.title = 'New Title'; }, [count]). This updates the document title whenever count changes.
-
-[00:03:30] It's important to understand the dependency array. If you pass an empty array, the effect only runs once after the initial render, similar to componentDidMount.
-
-[00:04:15] If you omit the dependency array entirely, the effect runs after every render. This can lead to performance issues, so use it carefully.
-
-[00:05:00] Let's look at some practical examples. Suppose you want to fetch data from an API when a component mounts. You can use useEffect with an empty dependency array.
-
-[00:05:45] Remember to handle cleanup in your effects. If you subscribe to something, make sure to unsubscribe when the component unmounts by returning a cleanup function.
-
-[00:06:30] That wraps up our introduction to React Hooks. Practice these concepts, and you'll become proficient in no time. Thanks for watching!
-  `.trim();
+  // Use transcript content from props (backend fetched)
+  const transcriptText = transcript?.transcript || '';
 
   const highlightSearch = (text) => {
     if (!searchTerm) return text;
@@ -37,6 +33,10 @@ const TranscriptViewPage = ({ transcript, onBack }) => {
         ? `<mark class="bg-yellow-200">${part}</mark>` 
         : part
     ).join('');
+  };
+
+  const handleCopyTranscript = () => {
+    navigator.clipboard.writeText(transcriptText);
   };
 
   return (
@@ -53,8 +53,10 @@ const TranscriptViewPage = ({ transcript, onBack }) => {
           </button>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{transcript.title}</h1>
-              <p className="text-gray-600">Duration: {transcript.duration} • {transcript.date}</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{transcript.subject || transcript.title || 'Transcript'}</h1>
+                <p className="text-gray-600">
+                  {transcript.createdAt ? new Date(transcript.createdAt).toLocaleString() : 'Date unknown'}
+                </p>
             </div>
             <div className="flex space-x-2">
               <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center space-x-2">
@@ -67,13 +69,6 @@ const TranscriptViewPage = ({ transcript, onBack }) => {
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Video Player Placeholder */}
-        <div className="bg-gray-900 rounded-xl mb-8 aspect-video flex items-center justify-center">
-          <button className="bg-white/20 hover:bg-white/30 p-6 rounded-full transition">
-            <Play className="w-12 h-12 text-white" />
-          </button>
         </div>
 
         {/* Search Bar */}
@@ -94,17 +89,58 @@ const TranscriptViewPage = ({ transcript, onBack }) => {
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Transcript</h2>
-            <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition">
+            <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition" onClick={handleCopyTranscript}>
               <Copy className="w-4 h-4" />
               <span>Copy All</span>
             </button>
           </div>
-          
           <div className="prose max-w-none">
             <div 
-              className="text-gray-700 leading-relaxed whitespace-pre-wrap font-mono text-sm"
+              className="text-gray-700 leading-relaxed whitespace-pre-wrap font-mono text-sm max-h-96 overflow-y-auto"
               dangerouslySetInnerHTML={{ __html: highlightSearch(transcriptText) }}
             />
+          </div>
+
+          {/* Chat Q&A Section */}
+          <div className="mt-8">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Bot className="w-5 h-5 text-purple-600" /> Ask Questions About This Transcript
+            </h3>
+            <div className="space-y-4 mb-4 max-h-64 overflow-y-auto">
+              {chatHistory.map((msg, idx) => (
+                <div key={idx} className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-blue-600" />
+                    <span className="font-semibold text-blue-700">You:</span>
+                    <span className="text-gray-800">{msg.question}</span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-6">
+                    <Bot className="w-4 h-4 text-purple-600" />
+                    <span className="font-semibold text-purple-700">GeminiAI:</span>
+                    <span className="text-gray-800">{msg.answer}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                placeholder="Ask a question about this transcript..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                disabled={chatLoading}
+                onKeyDown={e => { if (e.key === 'Enter') handleSendChat(); }}
+              />
+              <button
+                onClick={handleSendChat}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
+                disabled={chatLoading}
+              >
+                <Send className="w-5 h-5" />
+                {chatLoading ? 'Sending...' : 'Send'}
+              </button>
+            </div>
           </div>
         </div>
 

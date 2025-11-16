@@ -1,23 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Folder, Plus, Trash2, X } from 'lucide-react';
+import { userAPI } from '../services/api';
 
 const FoldersPage = ({ onOpenFolder }) => {
-  const [folders, setFolders] = useState([
-    { id: 1, name: "Web Development", count: 12, color: "bg-blue-500" },
-    { id: 2, name: "Computer Science", count: 8, color: "bg-purple-500" },
-    { id: 3, name: "AI & ML", count: 15, color: "bg-green-500" },
-    { id: 4, name: "Mathematics", count: 6, color: "bg-orange-500" }
-  ]);
+  const [folders, setFolders] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
-  const createFolder = () => {
-    if (newFolderName.trim()) {
+  // Fetch folders on mount
+  useEffect(() => {
+    const fetchFolders = async () => {
+      try {
+        setLoading(true);
+        const data = await userAPI.getFolders();
+        setFolders(data || []);
+      } catch (err) {
+        setError(err.message || 'Failed to load folders');
+        setFolders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFolders();
+  }, []);
+
+  const createFolder = async () => {
+    if (!newFolderName.trim()) {
+      alert('Please enter a folder name');
+      return;
+    }
+
+    setCreatingFolder(true);
+    try {
+      const response = await userAPI.createFolder({ name: newFolderName });
       const colors = ["bg-blue-500", "bg-purple-500", "bg-green-500", "bg-orange-500", "bg-pink-500"];
       setFolders([
         ...folders,
         {
-          id: Date.now(),
+          id: response.id || Date.now(),
           name: newFolderName,
           count: 0,
           color: colors[Math.floor(Math.random() * colors.length)]
@@ -25,12 +49,21 @@ const FoldersPage = ({ onOpenFolder }) => {
       ]);
       setNewFolderName("");
       setShowCreateModal(false);
+    } catch (err) {
+      alert(err.message || 'Failed to create folder');
+    } finally {
+      setCreatingFolder(false);
     }
   };
 
-  const deleteFolder = (id) => {
+  const deleteFolder = async (id) => {
     if (window.confirm("Are you sure you want to delete this folder? All transcripts will be moved to 'Uncategorized'.")) {
-      setFolders(folders.filter((f) => f.id !== id));
+      try {
+        await userAPI.deleteFolder(id);
+        setFolders(folders.filter((f) => f._id !== id && f.id !== id));
+      } catch (err) {
+        alert(err.message || 'Failed to delete folder');
+      }
     }
   };
 
@@ -43,6 +76,12 @@ const FoldersPage = ({ onOpenFolder }) => {
           <p className="text-gray-600">Organize your transcripts into folders</p>
         </div>
 
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+
         <div className="mb-8">
           <button
             onClick={() => setShowCreateModal(true)}
@@ -53,37 +92,57 @@ const FoldersPage = ({ onOpenFolder }) => {
           </button>
         </div>
 
-        {/* FOLDER GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {folders.map((folder) => (
-            <div
-              key={folder.id}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl transition p-6 relative group"
-            >
-              <div className={`${folder.color} w-16 h-16 rounded-lg flex items-center justify-center mb-4`}>
-                <Folder className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{folder.name}</h3>
-              <p className="text-gray-600">{folder.count} transcripts</p>
-
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition">
-                <button
-                  onClick={() => deleteFolder(folder.id)}
-                  className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-lg text-gray-600">Loading folders...</div>
+          </div>
+        ) : (
+          <>
+            {/* FOLDER GRID */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {folders.map((folder) => (
+                <div
+                  key={folder.id}
+                  className="bg-white rounded-xl shadow-md hover:shadow-xl transition p-6 relative group"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+                  <div className={`${folder.color} w-16 h-16 rounded-lg flex items-center justify-center mb-4`}>
+                    <Folder className="w-8 h-8 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{folder.name}</h3>
+                  <p className="text-gray-600">{folder.count || 0} transcripts</p>
 
-              <button
-                onClick={() => onOpenFolder(folder)}
-                className="mt-4 w-full px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition"
-              >
-                Open Folder
-              </button>
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      onClick={() => deleteFolder(folder.id)}
+                      className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => onOpenFolder(folder)}
+                    className="mt-4 w-full px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition"
+                  >
+                    Open Folder
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+
+            {folders.length === 0 && (
+              <div className="text-center py-12">
+                <Folder className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  No folders yet
+                </h3>
+                <p className="text-gray-600">
+                  Create your first folder to organize your transcripts!
+                </p>
+              </div>
+            )}
+          </>
+        )}
 
         {/* CREATE MODAL */}
         {showCreateModal && (
@@ -119,9 +178,10 @@ const FoldersPage = ({ onOpenFolder }) => {
                   </button>
                   <button
                     onClick={createFolder}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    disabled={creatingFolder}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Create
+                    {creatingFolder ? 'Creating...' : 'Create'}
                   </button>
                 </div>
               </div>

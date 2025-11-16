@@ -1,101 +1,175 @@
-const audioChunks = [];
-let mediaRecorder;
+const BACKEND_URL = "http://localhost:8000";
+const MAX_RECORDING_TIME = 20 * 60 * 1000; // 20 minutes in milliseconds
 
-const BACKEND_URL = "http://localhost:8000/extension";
+let audioChunks = [];
+let mediaRecorder = null;
+let recordingStartTime = null;
+let timerInterval = null;
+let isRecording = false;
 
-document.getElementById('start-transcription').addEventListener('click', () => {
-  startTabAudioCapture();
-  return true;
+const startButton = document.getElementById('start-button');
+const stopButton = document.getElementById('stop-button');
+const timerDisplay = document.getElementById('timer');
+const statusBox = document.getElementById('status');
+const authStatus = document.getElementById('auth-status');
+const maxWarning = document.getElementById('max-warning');
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  checkLoginStatus();
 });
 
-document.getElementById('stop-transcription').addEventListener('click', () => {
-  stopRecording();
-});
+startButton.addEventListener('click', startRecording);
+stopButton.addEventListener('click', stopRecording);
 
-function stopRecording(){
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    logStatus("Recording stopped by user.");
+async function checkLoginStatus() {
+  try {
+    const response = await fetch(`${BACKEND_URL}/user/profile`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (response.ok) {
+      const user = await response.json();
+      showAuthMessage(`Logged in as ${user.name || user.email}`, 'success');
+      startButton.disabled = false;
+    } else {
+      showAuthMessage('You must be logged in to use this extension', 'error');
+      startButton.disabled = true;
+    }
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    showAuthMessage('Unable to verify login. Please refresh.', 'error');
+    startButton.disabled = true;
   }
 }
 
-function logStatus(message) {
-  const statusDiv = document.getElementById('status');
-  const p = document.createElement('p');
-  p.textContent = message;
-  statusDiv.appendChild(p);
+function showAuthMessage(message, type) {
+  authStatus.textContent = message;
+  authStatus.className = `auth-message ${type}`;
+  authStatus.style.display = 'block';
 }
 
-
-function connectStreamToSpeakers(stream) {
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const source = audioContext.createMediaStreamSource(stream);
-  source.connect(audioContext.destination);
-  
-  logStatus("Audio passthrough activated. You should now hear the tab.");
-  
-  return { audioContext, source };
+function addStatusMessage(message, type = 'info') {
+  const messageEl = document.createElement('div');
+  messageEl.className = `status-message ${type}`;
+  messageEl.textContent = message;
+  statusBox.appendChild(messageEl);
+  statusBox.scrollTop = statusBox.scrollHeight;
 }
 
+function updateTimer() {
+  const elapsed = Date.now() - recordingStartTime;
+  const minutes = Math.floor(elapsed / 60000);
+  const seconds = Math.floor((elapsed % 60000) / 1000);
+  const timeString = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  
+  timerDisplay.textContent = timeString;
+  timerDisplay.classList.add('active');
 
-function startTabAudioCapture() {
-logStatus("Starting tab audio capture...");
+  // Check if max time reached
+  if (elapsed >= MAX_RECORDING_TIME) {
+    maxWarning.classList.add('active');
+    stopRecording();
+  }
+}
 
-chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    chrome.tabCapture.capture({ audio: true, video: false }, (stream) => {
-        if (!stream) {
-            logStatus(`Capture failed: ${chrome.runtime.lastError.message}`);
-            return;
-        }
-        logStatus("Tab audio stream successfully captured.");
+async function startRecording() {
+  statusBox.innerHTML = ''; // Clear previous messages
+  maxWarning.classList.remove('active');
+  addStatusMessage('Checking audio permissions...', 'info');
 
-        const passthrough = connectStreamToSpeakers(stream);
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabCapture.capture({ audio: true, video: false }, async (stream) => {
+      if (!stream) {
+        addStatusMessage(`Capture failed: ${chrome.runtime.lastError?.message || 'Unknown error'}`, 'error');
+        return;
+      }
 
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks.length = 0;
+      addStatusMessage('Audio stream captured', 'success');
 
-        mediaRecorder.ondataavailable = (event) => {
-            audioChunks.push(event.data);
-        };
+      // Create audio context for passthrough (user can hear the audio while recording)
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(audioContext.destination);
+        addStatusMessage('Audio passthrough enabled - you can hear the recording', 'info');
+      } catch (err) {
+        console.warn('Audio passthrough not available:', err);
+      }
 
-        mediaRecorder.onstop = async () => {
-            logStatus("Recording stopped. Converting to file.");
-            
-            passthrough.source.disconnect(passthrough.audioContext.destination);
-            passthrough.audioContext.close();
-            stream.getTracks().forEach(track => track.stop());
-            
-            // Combine chunks into a single audio Blob and send...
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            let response
-            try{
-              response = await fetch(`${BACKEND_URL}/audio`,{
-                method: "POST",
-                headers: {
-                  'Content-Type': 'audio/webm'
-                },
-                body: audioBlob
-              });
-            } catch(err) {
-              logStatus(err);
-            }
-            
-            if (response.ok) {
-              logStatus("Audio file sent to backend successfully...");
-              const result = await response.json();
-              console.log(result);
-              logStatus(result.transcript);
-            } else {
-              logStatus("Failed to send audio file to backend.");
-            }
-        };
+      // Set up media recorder
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      isRecording = true;
+      recordingStartTime = Date.now();
 
-        mediaRecorder.start();
-        logStatus("Recording started (10s limit for demo).");
+      // Update UI
+      startButton.style.display = 'none';
+      stopButton.classList.add('active');
 
-        setTimeout(() => {
-            stopRecording();
-        }, 10000); 
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunks.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        isRecording = false;
+        startButton.style.display = 'block';
+        stopButton.classList.remove('active');
+        timerDisplay.classList.remove('active');
+        clearInterval(timerInterval);
+        timerDisplay.textContent = '00:00';
+
+        addStatusMessage('Processing audio...', 'info');
+
+        // Combine chunks and send to backend
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        await sendAudioToBackend(audioBlob);
+
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      addStatusMessage('Recording started (max 20 minutes)', 'success');
+
+      // Start timer
+      timerInterval = setInterval(updateTimer, 1000);
     });
   });
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    addStatusMessage('Recording stopped', 'info');
+  }
+}
+
+async function sendAudioToBackend(audioBlob) {
+  try {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
+
+    const response = await fetch(`${BACKEND_URL}/extension/transcript`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      addStatusMessage('Transcript created successfully!', 'success');
+      if (result.transcript) {
+        addStatusMessage(`Transcript: ${result.transcript.substring(0, 100)}...`, 'info');
+      }
+    } else {
+      const error = await response.json();
+      addStatusMessage(`Backend error: ${error.detail || 'Unknown error'}`, 'error');
+    }
+  } catch (error) {
+    console.error('Send audio error:', error);
+    addStatusMessage(`Failed to send audio: ${error.message}`, 'error');
+  }
 }
