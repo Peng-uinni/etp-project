@@ -1,13 +1,12 @@
 import os
-import sys
+import dotenv
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import ExtensionRouter, UserRouter, AuthRouter
+from .routers import *
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
+dotenv.load_dotenv()
 
 app = FastAPI()
 
@@ -30,4 +29,4 @@ app.include_router(AuthRouter)
 
 @app.get("/")
 async def read_root():
-    return {"Hello": "World"}
+    return {"Hello": os.getenv('GEMINI_API_KEY')}

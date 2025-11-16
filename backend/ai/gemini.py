@@ -1,8 +1,13 @@
+import os
 from io import BytesIO
 from google import genai
 from google.genai.errors import APIError
 
-client = genai.Client()
+try:
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+    client = genai.Client(api_key=GEMINI_API_KEY)
+except Exception as e:
+    print(e)
 
 def generateTranscript(audio_file_bytes: bytes, mime_type: str = "audio/webm") -> str:
     try:
@@ -44,4 +49,3 @@ def randomMessage() -> str:
     
     except APIError as e:
         return f"An API error occurred: {e}"
-
