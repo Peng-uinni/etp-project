@@ -67,14 +67,18 @@ chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             
             // Combine chunks into a single audio Blob and send...
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-
-            const response = await fetch(`${BACKEND_URL}/audio`,{
-              method: "POST",
-              headers: {
-                'Content-Type': 'audio/webm'
-              },
-              body: audioBlob
-            });
+            let response
+            try{
+              response = await fetch(`${BACKEND_URL}/audio`,{
+                method: "POST",
+                headers: {
+                  'Content-Type': 'audio/webm'
+                },
+                body: audioBlob
+              });
+            } catch(err) {
+              logStatus(err);
+            }
             
             if (response.ok) {
               logStatus("Audio file sent to backend successfully...");

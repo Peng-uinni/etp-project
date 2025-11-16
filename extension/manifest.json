@@ -6,6 +6,9 @@
   "action": {
     "default_popup": "sidebar.html" 
   },
+  "host_permissions":[
+    "http://localhost:8000/extension/audio"
+  ],
   "permissions": [
     "activeTab",
     "tabCapture"
